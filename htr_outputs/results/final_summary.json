@@ -1,0 +1,149 @@
+{
+  "recognition": [
+    {
+      "tag": "cnn",
+      "down": 4,
+      "params": 1428860,
+      "best_epoch": 58,
+      "train_minutes": 427.3,
+      "val_CER": 0.3674749721913237,
+      "val_WER": 0.7426666666666667,
+      "test_CER": 0.2313340935005701,
+      "test_WER": 0.6294691224268689
+    },
+    {
+      "tag": "tcn",
+      "down": 8,
+      "params": 2746748,
+      "best_epoch": 50,
+      "train_minutes": 194.6,
+      "val_CER": 0.3594660734149054,
+      "val_WER": 0.7133333333333334,
+      "test_CER": 0.2304218928164196,
+      "test_WER": 0.6126760563380281
+    },
+    {
+      "tag": "transformer",
+      "down": 8,
+      "params": 3142780,
+      "best_epoch": 44,
+      "train_minutes": 257.5,
+      "val_CER": 0.3953281423804227,
+      "val_WER": 0.7976,
+      "test_CER": 0.2685974914481185,
+      "test_WER": 0.6939328277356447
+    }
+  ],
+  "final_decoder": {
+    "tag": "tcn",
+    "decoder": "beam+LM",
+    "beam": 10,
+    "alpha": 0.3,
+    "beta": 1.0,
+    "test_CER": 0.19917901938426455,
+    "test_WER": 0.5005417118093174,
+    "greedy_test_CER": 0.23042189281641962
+  },
+  "language_id": {
+    "val_true_text": {
+      "accuracy": 1.0,
+      "precision": [
+        1.0,
+        1.0
+      ],
+      "recall": [
+        1.0,
+        1.0
+      ],
+      "f1": [
+        1.0,
+        1.0
+      ],
+      "cm": [
+        [
+          44,
+          0
+        ],
+        [
+          0,
+          43
+        ]
+      ]
+    },
+    "test_true_text": {
+      "accuracy": 1.0,
+      "precision": [
+        1.0,
+        1.0
+      ],
+      "recall": [
+        1.0,
+        1.0
+      ],
+      "f1": [
+        1.0,
+        1.0
+      ],
+      "cm": [
+        [
+          49,
+          0
+        ],
+        [
+          0,
+          41
+        ]
+      ]
+    },
+    "test_recognised_text": {
+      "accuracy": 1.0,
+      "precision": [
+        1.0,
+        1.0
+      ],
+      "recall": [
+        1.0,
+        1.0
+      ],
+      "f1": [
+        1.0,
+        1.0
+      ],
+      "cm": [
+        [
+          49,
+          0
+        ],
+        [
+          0,
+          41
+        ]
+      ]
+    },
+    "unlabelled_folders_end_to_end": {
+      "accuracy": 0.975,
+      "precision": [
+        0.975609756097561,
+        1.0
+      ],
+      "recall": [
+        1.0,
+        0.95
+      ],
+      "f1": [
+        0.9876543209876543,
+        0.9743589743589743
+      ],
+      "cm": [
+        [
+          40,
+          0
+        ],
+        [
+          1,
+          38
+        ]
+      ]
+    }
+  }
+}

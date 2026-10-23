@@ -1,0 +1,8 @@
+# packages the app needs (same versions as your working "Translation Env": Python 3.11)
+torch
+transformers==4.49.0
+sentencepiece
+scikit-learn
+opencv-python
+numpy
+pandas

@@ -1,0 +1,10 @@
+﻿__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+translation_env/
+dataset/
+datasets/
+
+static/index.backup.html

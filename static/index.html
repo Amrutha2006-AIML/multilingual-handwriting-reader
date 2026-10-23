@@ -1,0 +1,381 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handwriting reader</title>
+<style>
+:root {
+  --page: #f2f5f8; --sheet: #ffffff; --rule: #d8e2ee; --line: #c9d5e3;
+  --ink: #17202e; --ink-2: #48566a; --pen: #2338a6; --pen-soft: #e6eafa;
+  --high: #1b7a52; --medium: #a86400; --low: #bf3a2b; --none: #8a97a8;
+  --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --deva: "Nirmala UI", "Noto Sans Devanagari", "Noto Serif Devanagari", "Mangal", "Kohinoor Devanagari", var(--font);
+  --lh: 2.25rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #0f141c; --sheet: #161d28; --rule: #243145; --line: #2c3b52; --ink: #e8edf5; --ink-2: #a3b0c3;
+          --pen: #8fa2ff; --pen-soft: #1d2646; --high: #4cc58d; --medium: #e5a23a; --low: #ff7d6e; --none: #77869b; }
+}
+* { box-sizing: border-box; }
+html { background: var(--page); color: var(--ink); font-family: var(--font); line-height: 1.5; }
+body { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 64px; }
+
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; padding: 28px 0 8px; }
+h1 { margin: 0; font-size: 1.6rem; font-weight: 650; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); margin: 0; }
+.status { margin-left: auto; font-size: .85rem; color: var(--ink-2); display: flex; gap: 14px; flex-wrap: wrap; }
+.status span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--none); margin-right: 6px; }
+.status .ok::before { background: var(--high); } .status .busy::before { background: var(--medium); } .status .bad::before { background: var(--low); }
+
+nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 12px 0 24px; }
+nav button { background: none; border: 0; padding: 10px 16px; cursor: pointer; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 550; }
+nav button[aria-selected="true"] { color: var(--pen); border-bottom-color: var(--pen); }
+
+.banner { background: var(--pen-soft); border: 1px solid var(--pen); border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; }
+
+.cols { display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 28px; align-items: start; }
+@media (max-width: 880px) { .cols { grid-template-columns: 1fr; } }
+
+/* upload side */
+.drop { display: block; border: 2px dashed var(--line); border-radius: 10px; padding: 28px 18px; text-align: center; cursor: pointer; background: var(--sheet); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--pen); background: var(--pen-soft); }
+.drop strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+.drop small { color: var(--ink-2); }
+.photo { margin-top: 16px; }
+.photo img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; background: var(--sheet); }
+.samples { margin-top: 18px; }
+.samples h2 { font-size: .95rem; margin: 0 0 8px; font-weight: 600; }
+.samples div { display: flex; flex-wrap: wrap; gap: 8px; }
+.samples button { border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: .85rem; }
+.samples button:hover { border-color: var(--pen); color: var(--pen); }
+.tips { color: var(--ink-2); font-size: .88rem; margin: 18px 0 0; padding-left: 18px; }
+
+/* result side */
+.empty { border: 1px dashed var(--line); border-radius: 10px; padding: 40px 24px; color: var(--ink-2); background: var(--sheet); }
+.empty p { margin: 0 0 6px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; margin-bottom: 14px; }
+.facts .lang { font-size: 1.5rem; font-weight: 650; }
+.facts .meta { color: var(--ink-2); font-size: .9rem; }
+.pill { display: inline-block; padding: 2px 12px; border-radius: 999px; font-weight: 600; font-size: .85rem; color: #fff; background: var(--none); }
+.pill.HIGH { background: var(--high); } .pill.MEDIUM { background: var(--medium); } .pill.LOW { background: var(--low); }
+@media (prefers-color-scheme: dark) { .pill { color: #0f141c; } }
+.warn { border-left: 4px solid var(--medium); background: var(--sheet); padding: 10px 14px; margin: 0 0 10px; border-radius: 0 8px 8px 0; }
+.warn.LOW { border-left-color: var(--low); }
+
+/* the ruled sheet: the margin line takes the reliability colour */
+.sheet { position: relative; background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; margin: 0 0 18px;
+  padding: 0 18px 0 54px; --tier: var(--none); overflow: hidden; }
+.sheet::before { content: ""; position: absolute; top: 0; bottom: 0; left: 36px; width: 2px; background: var(--tier); }
+.sheet.HIGH { --tier: var(--high); } .sheet.MEDIUM { --tier: var(--medium); } .sheet.LOW { --tier: var(--low); }
+.sheet .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0 2px; min-height: var(--lh); font-weight: 600; }
+.sheet .head button { border: 1px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 2px 10px; cursor: pointer; font-size: .82rem; }
+.sheet .head button:hover { border-color: var(--pen); color: var(--pen); }
+.ruled { margin: 0; padding: 0 0 6px; line-height: var(--lh); font-size: 1.2rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--lh) - 1px), var(--rule) calc(var(--lh) - 1px), var(--rule) var(--lh));
+  background-attachment: local; min-height: calc(var(--lh) * 2); }
+.ruled.deva { font-family: var(--deva); font-size: 1.3rem; }
+.note { color: var(--ink-2); font-size: .85rem; padding: 4px 0 12px; margin: 0; }
+.spin { display: inline-block; width: 1em; height: 1em; border: 2px solid var(--line); border-top-color: var(--pen); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: var(--line); } .drop { transition: none; } }
+
+.targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 22px 0 14px; }
+.targets h2 { font-size: 1rem; margin: 0 8px 0 0; font-weight: 600; }
+.targets label { border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 3px 14px; cursor: pointer; font-size: .9rem; user-select: none; }
+.targets label:has(input:checked) { background: var(--pen); border-color: var(--pen); color: #fff; }
+@media (prefers-color-scheme: dark) { .targets label:has(input:checked) { color: #0f141c; } }
+.targets label:has(input:focus-visible) { outline: 3px solid var(--pen); outline-offset: 2px; }
+.targets input { position: absolute; opacity: 0; pointer-events: none; }
+.targets select { border: 1px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 3px 8px; margin-left: auto; }
+.actions { display: flex; gap: 10px; margin: 4px 0 18px; }
+.btn { border: 1px solid var(--pen); background: var(--pen); color: #fff; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .btn { color: #0f141c; } }
+.btn.quiet { background: var(--sheet); color: var(--pen); }
+
+details.view { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+details.view summary { cursor: pointer; font-weight: 600; }
+details.view img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; margin: 10px 0 2px; background: #fff; }
+details.view p { color: var(--ink-2); font-size: .88rem; margin: 6px 0; }
+
+/* results tab */
+.res h2 { font-size: 1.15rem; margin: 30px 0 8px; }
+.res h2:first-child { margin-top: 0; }
+.res p { max-width: 70ch; color: var(--ink-2); }
+table { border-collapse: collapse; width: 100%; max-width: 760px; background: var(--sheet); border: 1px solid var(--line); }
+th, td { text-align: right; padding: 8px 12px; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; background: var(--pen-soft); }
+tr.best td { font-weight: 650; }
+.figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 22px; }
+.figs figure { margin: 0; }
+.figs img { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: block; }
+.figs figcaption { color: var(--ink-2); font-size: .88rem; padding-top: 6px; }
+.kpis { display: flex; flex-wrap: wrap; gap: 14px 40px; margin: 6px 0 4px; }
+.kpis div { min-width: 120px; } .kpis b { font-size: 1.7rem; font-weight: 650; display: block; line-height: 1.2; } .kpis span { color: var(--ink-2); font-size: .88rem; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Handwriting reader</h1>
+    <p class="sub">Hindi and Marathi handwriting to text, language and translation</p>
+    <div class="status" id="status" aria-live="polite"></div>
+  </header>
+
+  <nav role="tablist">
+    <button role="tab" id="tab-read" aria-selected="true" aria-controls="view-read">Read a photo</button>
+    <button role="tab" id="tab-results" aria-selected="false" aria-controls="view-results">How well it works</button>
+  </nav>
+
+  <div id="mockbanner" class="banner" hidden>Demo mode: no models are loaded and the recognised text is canned. Start the app without <code>--mock</code> to read real photos.</div>
+
+  <main id="view-read" role="tabpanel" aria-labelledby="tab-read">
+    <div class="cols">
+      <section aria-label="Photo">
+        <label class="drop" id="drop" tabindex="0">
+          <strong>Choose a photo of handwriting</strong>
+          <small>or drop it here (JPG or PNG)</small>
+          <input type="file" id="file" accept="image/*" style="display:block; margin:12px auto;">
+        </label>
+        <div class="photo" id="photo" hidden><img id="photoimg" alt="Your uploaded photo"></div>
+        <div class="samples" id="samples" hidden><h2>Try a sample</h2><div id="samplelist"></div></div>
+        <ul class="tips">
+          <li>Photograph one handwritten paragraph, flat on plain paper.</li>
+          <li>Use even light, with no shadows across the lines.</li>
+          <li>Fill the frame with the page and keep the lines horizontal.</li>
+        </ul>
+      </section>
+
+      <section aria-label="Result" aria-live="polite" id="result">
+        <div class="empty"><p><strong>Nothing read yet.</strong></p><p>Choose a photo and the recognised text, its language and the translation appear here.</p></div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-results" class="res" role="tabpanel" aria-labelledby="tab-results" hidden></main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const h = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+};
+const pct = (x, d = 0) => (100 * x).toFixed(d) + "%";
+let S = { rec: null, tr: {}, targets: [], status: null, busy: false };
+
+/* ---------- status line ---------- */
+async function loadStatus() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    S.status = s;
+    $("mockbanner").hidden = !s.mock;
+    const nl = s.nllb || "";
+    const cls = nl === "ready" ? "ok" : nl.startsWith("error") ? "bad" : "busy";
+    const txt = nl === "ready" ? "Translation ready" : nl.startsWith("error") ? "Translation unavailable" : "Translation model loading";
+    const st = $("status"); st.replaceChildren(
+      h("span", { class: "ok" }, `Reader: ${s.ocr_model.toUpperCase()}, ${s.device}`),
+      h("span", { class: cls, title: nl }, txt));
+    if (!S.targets.length) { S.targets = s.targets; }
+    if (nl === "loading" || nl === "not loaded") setTimeout(loadStatus, 3000);
+  } catch (e) {
+    $("status").replaceChildren(h("span", { class: "bad" }, "Server not reachable"));
+  }
+}
+
+/* ---------- tabs ---------- */
+function tab(name) {
+  for (const t of ["read", "results"]) {
+    $("tab-" + t).setAttribute("aria-selected", t === name);
+    $("view-" + t).hidden = t !== name;
+  }
+  if (name === "results") loadResults();
+}
+$("tab-read").onclick = () => tab("read");
+$("tab-results").onclick = () => tab("results");
+
+/* ---------- upload ---------- */
+const drop = $("drop"), fileIn = $("file");
+drop.addEventListener("click", (e) => { if (e.target === fileIn) return; e.preventDefault(); fileIn.click(); });
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileIn.click(); } });
+fileIn.addEventListener("change", () => fileIn.files[0] && handleFile(fileIn.files[0]));
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+
+async function loadSamples() {
+  try {
+    const { samples } = await (await fetch("/api/samples")).json();
+    if (!samples.length) return;
+    $("samples").hidden = false;
+    $("samplelist").replaceChildren(...samples.map((n) => h("button", { type: "button", onclick: async () => {
+      const blob = await (await fetch("/samples/" + encodeURIComponent(n))).blob();
+      handleFile(new File([blob], n, { type: blob.type }));
+    } }, n.replace(/\.[^.]+$/, ""))));
+  } catch (e) { /* no samples */ }
+}
+
+async function handleFile(file) {
+  if (S.busy) return;
+  S.busy = true; S.rec = null; S.tr = {};
+  $("photo").hidden = false; $("photoimg").src = URL.createObjectURL(file);
+  $("result").replaceChildren(h("div", { class: "empty" }, h("p", {}, h("span", { class: "spin" }), "Reading the handwriting. This takes a few seconds.")));
+  try {
+    const r = await fetch("/api/recognise", { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });
+    const j = await r.json();
+    if (!r.ok && !j.text && !j.ok) throw new Error(j.error || "The photo could not be read.");
+    S.rec = j;
+    render();
+    if (j.ok) for (const t of checkedTargets()) translate(t);
+  } catch (e) {
+    $("result").replaceChildren(h("div", { class: "warn LOW" }, "Could not read this photo. ", String(e.message || e), " Try another photo."));
+  } finally { S.busy = false; }
+}
+
+/* ---------- result rendering ---------- */
+function checkedTargets() { return [...document.querySelectorAll(".targets input:checked")].map((i) => i.value); }
+let keepTargets = ["English"];
+
+function render() {
+  const r = S.rec, box = $("result");
+  if (!r) return;
+  const kids = [];
+  if (!r.ok) {
+    kids.push(h("div", { class: "warn LOW" }, h("strong", {}, "No text found. "), r.error || ""));
+    if (r.preview && r.preview.lines) kids.push(previewBlock(r));
+    box.replaceChildren(...kids); return;
+  }
+  kids.push(h("div", { class: "facts" },
+    h("span", { class: "lang" }, r.language),
+    h("span", { class: "meta" }, `language score ${pct(r.language_confidence)}`),
+    h("span", { class: `pill ${r.reliability}`, title: `${r.bits_per_char} bits per character, baseline ${r.baseline_bits_per_char}` }, `${r.reliability.toLowerCase()} reliability`),
+    h("span", { class: "meta" }, `${r.n_lines} ${r.n_lines === 1 ? "line" : "lines"} read in ${r.seconds} s`)));
+  for (const w of r.warnings) kids.push(h("p", { class: `warn ${r.reliability}` }, w));
+
+  kids.push(h("div", { class: `sheet ${r.reliability}` },
+    h("div", { class: "head" }, h("span", {}, `Recognised text (${r.language})`),
+      h("button", { type: "button", onclick: (e) => copy(r.text, e.target) }, "Copy")),
+    h("p", { class: "ruled deva", lang: r.language === "Marathi" ? "mr" : "hi" }, r.text)));
+
+  kids.push(h("div", { class: "targets", role: "group", "aria-label": "Translate into" },
+    h("h2", {}, "Translate into"),
+    ...S.targets.filter((t) => t !== r.language).map((t) => h("label", {}, h("input", {
+      type: "checkbox", value: t, checked: keepTargets.includes(t),
+      onchange: (e) => { keepTargets = checkedTargets(); if (e.target.checked) translate(t); else removeSheet(t); } }), t)),
+    h("select", { id: "beams", "aria-label": "Translation quality", onchange: () => { S.tr = {}; document.querySelectorAll(".trsheet").forEach((n) => n.remove()); checkedTargets().forEach(translate); } },
+      h("option", { value: "1" }, "Fast"), h("option", { value: "4" }, "Better quality, slower"))));
+  kids.push(h("div", { id: "translations" }));
+  kids.push(h("div", { class: "actions" },
+    h("button", { type: "button", class: "btn", onclick: download }, "Download as text file")));
+  if (r.preview && r.preview.lines) kids.push(previewBlock(r));
+  box.replaceChildren(...kids);
+}
+
+function previewBlock(r) {
+  return h("details", { class: "view" }, h("summary", {}, "How the photo was read"),
+    h("p", {}, "Green boxes mark the text lines the reader found. Each line is then joined into one strip and read from left to right."),
+    h("img", { src: r.preview.lines, alt: "Photo with detected text lines outlined in green" }),
+    r.preview.strip ? h("img", { src: r.preview.strip, alt: "The text lines joined into one strip" }) : null);
+}
+
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => (btn.textContent = o), 1200); }
+  catch (e) { btn.textContent = "Copy failed"; }
+}
+function removeSheet(t) { const n = document.querySelector(`.trsheet[data-t="${t}"]`); if (n) n.remove(); delete S.tr[t]; }
+
+async function translate(target) {
+  const r = S.rec; if (!r || !r.ok) return;
+  const holder = $("translations"); if (!holder) return;
+  removeSheet(target);
+  const body = h("p", { class: "ruled" }, h("span", { class: "spin" }), "Translating");
+  const sheet = h("div", { class: `sheet trsheet ${r.reliability}`, "data-t": target },
+    h("div", { class: "head" }, h("span", {}, target)), body);
+  holder.append(sheet);
+  try {
+    const beams = parseInt(($("beams") || { value: "1" }).value, 10);
+    const res = await (await fetch("/api/translate", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: r.text, source: r.language, target, beams }) })).json();
+    if (!res.ok) throw new Error(res.error || "translation failed");
+    S.tr[target] = res.text;
+    body.replaceChildren(document.createTextNode(res.text));
+    sheet.querySelector(".head").append(h("button", { type: "button", onclick: (e) => copy(res.text, e.target) }, "Copy"));
+    if (r.reliability !== "HIGH") sheet.append(h("p", { class: "note" }, r.reliability === "LOW"
+      ? "This translation is probably wrong because the text was read poorly."
+      : "Some words were probably misread, so the translation may contain errors."));
+  } catch (e) {
+    body.replaceChildren(document.createTextNode("Translation is not available: " + e.message));
+  }
+}
+
+function download() {
+  const r = S.rec; if (!r) return;
+  const lines = ["Handwriting reader", "", `Language: ${r.language} (score ${pct(r.language_confidence)})`,
+    `Reading reliability: ${r.reliability.toLowerCase()}`, "", "Recognised text", r.text];
+  for (const [t, txt] of Object.entries(S.tr)) lines.push("", `Translation into ${t}`, txt);
+  const a = h("a", { href: URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/plain;charset=utf-8" })), download: "handwriting_result.txt" });
+  document.body.append(a); a.click(); a.remove();
+}
+
+/* ---------- results tab ---------- */
+let resultsLoaded = false;
+async function loadResults() {
+  if (resultsLoaded) return;
+  const box = $("view-results");
+  box.replaceChildren(h("p", {}, h("span", { class: "spin" }), "Loading results"));
+  try {
+    const R = await (await fetch("/api/results")).json();
+    if (R.error) throw new Error(R.error);
+    resultsLoaded = true;
+    const f = R.final, lid = R.language_id, T = R.translation;
+    const best = R.models.reduce((a, b) => (a.val_CER < b.val_CER ? a : b)).tag;
+    const kids = [];
+    kids.push(h("h2", {}, "Reading accuracy"),
+      h("div", { class: "kpis" },
+        h("div", {}, h("b", {}, pct(f.test_CER, 1)), h("span", {}, "characters wrong on unseen pages")),
+        h("div", {}, h("b", {}, pct(f.test_WER, 1)), h("span", {}, "words wrong on unseen pages")),
+        h("div", {}, h("b", {}, pct(lid.unlabelled_folders_end_to_end.accuracy, 1)), h("span", {}, "language identified correctly, photo to language"))),
+      h("p", {}, `The final reader is the ${f.tag.toUpperCase()} model with beam search and a character language model (beam ${f.beam}). The test pages were written by people the model never saw in training. Without the language model the character error was ${pct(f.greedy_test_CER, 1)}.`));
+    kids.push(h("h2", {}, "Three models compared"),
+      table(["Model", "Parameters", "Training time", "Validation CER", "Test CER", "Test WER"],
+        R.models.map((m) => [m.tag.toUpperCase(), (m.params / 1e6).toFixed(1) + " M", Math.round(m.train_minutes) + " min", pct(m.val_CER, 1), pct(m.test_CER, 1), pct(m.test_WER, 1)], ), best),
+      h("p", {}, "These numbers use plain greedy decoding. The model was chosen on validation pages, not test pages. CER and WER are character and word error rates, so lower is better."));
+    kids.push(h("h2", {}, "Language identification"),
+      table(["Input", "Accuracy", "Hindi correct", "Hindi as Marathi", "Marathi as Hindi", "Marathi correct"],
+        [["True text (test)", lid.test_true_text], ["Recognised text (test)", lid.test_recognised_text], ["Photos from unlabelled folders", lid.unlabelled_folders_end_to_end]]
+          .map(([n, v]) => [n, pct(v.accuracy, 1), v.cm[0][0], v.cm[0][1], v.cm[1][0], v.cm[1][1]])),
+      h("p", {}, "Every miss on the unlabelled photos comes from a page where the reader produced almost no usable text."));
+    if (T) kids.push(h("h2", {}, "Translation"),
+      h("div", { class: "kpis" },
+        h("div", {}, h("b", {}, T.retention_chrF.toFixed(1)), h("span", {}, `chrF++ kept on ${T.pages} pages`)),
+        ...Object.entries(T.by_reliability).map(([k, v]) => h("div", {}, h("b", {}, v.toFixed(1)), h("span", {}, `${k.toLowerCase()} reliability pages`)))),
+      h("p", {}, `${T.model} translates the recognised text. The score compares that translation with the translation of the true text, so it shows how well translation survives reading errors. It is not a human judgement of translation quality. The more the reader gets wrong, the less survives (rank correlation ${T.spearman_cer_vs_retention}), which is why every page carries a reliability rating.`));
+    kids.push(h("h2", {}, "Charts"), h("div", { class: "figs" }, R.figures.map((g) => h("figure", {},
+      h("a", { href: "/figures/" + g.file, target: "_blank", rel: "noopener" }, h("img", { src: "/figures/" + g.file, alt: g.caption, loading: "lazy" })),
+      h("figcaption", {}, g.caption)))));
+    box.replaceChildren(...kids);
+  } catch (e) { box.replaceChildren(h("p", { class: "warn LOW" }, "Results could not be loaded: " + e.message)); }
+}
+function table(head, rows, bestTag) {
+  return h("table", {}, h("thead", {}, h("tr", {}, head.map((x) => h("th", { scope: "col" }, x)))),
+    h("tbody", {}, rows.map((r) => h("tr", { class: bestTag && r[0] === bestTag.toUpperCase() ? "best" : "" }, r.map((c) => h("td", {}, String(c)))))));
+}
+
+loadStatus(); loadSamples();
+</script>
+</body>
+</html>
+
+
+

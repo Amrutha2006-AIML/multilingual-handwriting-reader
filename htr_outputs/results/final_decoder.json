@@ -1,0 +1,10 @@
+{
+  "tag": "tcn",
+  "decoder": "beam+LM",
+  "beam": 10,
+  "alpha": 0.3,
+  "beta": 1.0,
+  "test_CER": 0.19917901938426455,
+  "test_WER": 0.5005417118093174,
+  "greedy_test_CER": 0.23042189281641962
+}

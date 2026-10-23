@@ -1,0 +1,11 @@
+{
+  "H": 48,
+  "cache_h": 64,
+  "target_width": 2000,
+  "heading_mode": "auto",
+  "seed": 42,
+  "batch_size": 4,
+  "num_workers": 0,
+  "data_root": "C:\\Users\\dasar\\Desktop\\DataSet\\Sentence Level",
+  "out_dir": "htr_outputs"
+}
