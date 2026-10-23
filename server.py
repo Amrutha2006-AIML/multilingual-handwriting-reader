@@ -1,4 +1,4 @@
-"""
+﻿"""
 server.py -- local web app for the handwriting pipeline (standard library only, no Flask / Gradio needed).
 
     python server.py                 # http://127.0.0.1:8000
@@ -173,8 +173,8 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     global PIPE
     ap = argparse.ArgumentParser(description="Handwriting recognition + language ID + translation web app")
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     ap.add_argument("--mock", action="store_true", help="UI test mode without models (canned output)")
     ap.add_argument("--no-warmup", action="store_true", help="do not pre-load the translation model")
     args = ap.parse_args()
@@ -195,3 +195,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
